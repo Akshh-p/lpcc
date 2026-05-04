@@ -1,0 +1,63 @@
+import java.util.*;
+
+class Main {
+
+    // Function to check precedence
+    static int precedence(char ch) {
+        if (ch == '+' || ch == '-') return 1;
+        if (ch == '*' || ch == '/') return 2;
+        return 0;
+    }
+
+    // Convert infix to postfix
+    static String infixToPostfix(String expr) {
+        Stack<Character> stack = new Stack<>();
+        StringBuilder postfix = new StringBuilder();
+
+        for (char ch : expr.toCharArray()) {
+            if (Character.isLetterOrDigit(ch)) {
+                postfix.append(ch);
+            } else {
+                while (!stack.isEmpty() && precedence(stack.peek()) >= precedence(ch)) {
+                    postfix.append(stack.pop());
+                }
+                stack.push(ch);
+            }
+        }
+
+        while (!stack.isEmpty()) {
+            postfix.append(stack.pop());
+        }
+
+        return postfix.toString();
+    }
+
+    public static void main(String[] args) {
+        String expr = "a+b*c-d";
+
+        String postfix = infixToPostfix(expr);
+        System.out.println("Postfix: " + postfix);
+
+        Stack<String> stack = new Stack<>();
+        List<String> code = new ArrayList<>();
+        int tempCount = 1;
+
+        for (char ch : postfix.toCharArray()) {
+            if (Character.isLetterOrDigit(ch)) {
+                stack.push(ch + "");
+            } else {
+                String op2 = stack.pop();
+                String op1 = stack.pop();
+
+                String temp = "t" + tempCount++;
+                code.add(temp + " = " + op1 + " " + ch + " " + op2);
+                stack.push(temp);
+            }
+        }
+
+        System.out.println("\nThree Address Code:");
+        for (String line : code) {
+            System.out.println(line);
+        }
+    }
+}
