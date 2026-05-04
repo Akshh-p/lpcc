@@ -1,0 +1,203 @@
+import java.util.*;
+
+class TwoPassAssembler {
+
+    static class Symbol {
+        String name;
+        int address;
+
+        Symbol(String name, int address) {
+            this.name = name;
+            this.address = address;
+        }
+    }
+
+    static class Literal {
+        String value;
+        int address;
+
+        Literal(String value) {
+            this.value = value;
+            this.address = -1;
+        }
+    }
+
+    static Map<String, String> OPTAB = new HashMap<>();
+    static Map<String, Integer> REG = new HashMap<>();
+    static Map<String, Integer> COND = new HashMap<>();
+
+    static {
+        OPTAB.put("STOP", "00");
+        OPTAB.put("ADD", "01");
+        OPTAB.put("SUB", "02");
+        OPTAB.put("MOVER", "04");
+        OPTAB.put("MOVEM", "05");
+        OPTAB.put("BC", "07");
+
+        REG.put("AREG", 1);
+        REG.put("BREG", 2);
+
+        COND.put("LT", 1);
+        COND.put("LE", 2);
+        COND.put("EQ", 3);
+        COND.put("GT", 4);
+    }
+
+    public static void main(String[] args) {
+
+        String[] program = {
+                "START 100",
+                "MOVER AREG, ='5'",
+                "ADD BREG, ='1'",
+                "LOOP SUB AREG, ='1'",
+                "BC LT, LOOP",
+                "STOP",
+                "END"
+        };
+
+        int LC = 0;
+
+        List<Symbol> symtab = new ArrayList<>();
+        List<Literal> littab = new ArrayList<>();
+        List<Integer> pooltab = new ArrayList<>();
+        List<String> IC = new ArrayList<>();
+
+        pooltab.add(0);
+
+        // ================= PASS 1 =================
+        for (String line : program) {
+
+            String[] parts = line.replace(",", "").split(" ");
+
+            // START
+            if (parts[0].equals("START")) {
+                LC = Integer.parseInt(parts[1]);
+                IC.add("(AD,01) (C," + LC + ")");
+            }
+
+            // END
+            else if (parts[0].equals("END")) {
+
+                for (Literal lit : littab) {
+                    if (lit.address == -1) {
+                        lit.address = LC++;
+                    }
+                }
+                IC.add("(AD,02)");
+            }
+
+            // STOP
+            else if (parts[0].equals("STOP")) {
+                IC.add(LC + " (IS,00)");
+                LC++;
+            }
+
+            else {
+
+                // LABEL
+                if (parts.length == 4) {
+                    symtab.add(new Symbol(parts[0], LC));
+                    parts = Arrays.copyOfRange(parts, 1, parts.length);
+                }
+
+                String op = parts[0];
+
+                // Instruction
+                String code = OPTAB.get(op);
+                String ICline = LC + " (IS," + code + ") ";
+
+                // Register
+                if (parts.length > 1) {
+                    String reg = parts[1];
+                    if (REG.containsKey(reg))
+                        ICline += "(" + REG.get(reg) + ") ";
+                }
+
+                // Operand
+                if (parts.length > 2) {
+                    String operand = parts[2];
+
+                    // Literal
+                    if (operand.contains("=")) {
+                        littab.add(new Literal(operand));
+                        ICline += "(L," + (littab.size() - 1) + ")";
+                    }
+
+                    // Symbol
+                    else {
+                        int index = findSymbol(symtab, operand);
+                        if (index == -1) {
+                            symtab.add(new Symbol(operand, -1));
+                            index = symtab.size() - 1;
+                        }
+                        ICline += "(S," + index + ")";
+                    }
+                }
+
+                IC.add(ICline);
+                LC++;
+            }
+        }
+
+        // ================= PRINT TABLES =================
+
+        System.out.println("\nIntermediate Code:");
+        for (String s : IC)
+            System.out.println(s);
+
+        System.out.println("\nSymbol Table:");
+        for (int i = 0; i < symtab.size(); i++)
+            System.out.println(i + " -> " + symtab.get(i).name + " : " + symtab.get(i).address);
+
+        System.out.println("\nLiteral Table:");
+        for (int i = 0; i < littab.size(); i++)
+            System.out.println(i + " -> " + littab.get(i).value + " : " + littab.get(i).address);
+
+        System.out.println("\nPool Table:");
+        for (int i = 0; i < pooltab.size(); i++)
+            System.out.println(i + " -> " + pooltab.get(i));
+
+        // ================= PASS 2 =================
+
+        System.out.println("\nMachine Code:");
+
+        for (String line : IC) {
+
+            if (line.contains("(IS")) {
+
+                String[] parts = line.split(" ");
+
+                String opcode = parts[1].substring(4, 6);
+
+                String reg = "0";
+                String addr = "000";
+
+                if (parts.length > 2) {
+                    if (parts[2].contains("("))
+                        reg = parts[2].replaceAll("[^0-9]", "");
+                }
+
+                if (parts.length > 3) {
+                    if (parts[3].contains("S")) {
+                        int index = Integer.parseInt(parts[3].replaceAll("[^0-9]", ""));
+                        addr = String.valueOf(symtab.get(index).address);
+                    }
+                    else if (parts[3].contains("L")) {
+                        int index = Integer.parseInt(parts[3].replaceAll("[^0-9]", ""));
+                        addr = String.valueOf(littab.get(index).address);
+                    }
+                }
+
+                System.out.println(opcode + " " + reg + " " + addr);
+            }
+        }
+    }
+
+    static int findSymbol(List<Symbol> symtab, String name) {
+        for (int i = 0; i < symtab.size(); i++) {
+            if (symtab.get(i).name.equals(name))
+                return i;
+        }
+        return -1;
+    }
+}
