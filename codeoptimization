@@ -1,0 +1,71 @@
+import java.util.*;
+class ExpressionOptimization {
+    static int precedence(char ch) {
+        if (ch == '+' || ch == '-') return 1;
+        if (ch == '*' || ch == '/') return 2;
+        return 0;
+    }
+    static String infixToPostfix(String expr) {
+        Stack<Character> stack = new Stack<>();
+        StringBuilder result = new StringBuilder();
+        for (char ch : expr.toCharArray()) {
+            if (Character.isLetterOrDigit(ch)) {
+                result.append(ch);
+            } else if (ch == '(') {
+                stack.push(ch);
+            } else if (ch == ')') {
+                while (!stack.isEmpty() && stack.peek() != '(')
+                    result.append(stack.pop());
+                stack.pop();
+            } else {
+                while (!stack.isEmpty() && precedence(stack.peek()) >= precedence(ch))
+                    result.append(stack.pop());
+                stack.push(ch);
+            }
+        }
+        while (!stack.isEmpty())
+            result.append(stack.pop());
+        return result.toString();
+    }
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter expression: ");
+        String expr = sc.nextLine().replaceAll(" ", "");
+        String postfix = infixToPostfix(expr);
+        Stack<String> stack = new Stack<>();
+        List<String> tac = new ArrayList<>();
+        int temp = 1;
+        for (char ch : postfix.toCharArray()) {
+            if (Character.isLetterOrDigit(ch)) {
+                stack.push(ch + "");
+            } else {
+                String op2 = stack.pop();
+                String op1 = stack.pop();
+                String t = "t" + temp++;
+                tac.add(t + " = " + op1 + " " + ch + " " + op2);
+                stack.push(t);
+            }
+        }
+        System.out.println("\nThree Address Code:");
+        for (String line : tac)
+            System.out.println(line);
+        List<String> optimized = new ArrayList<>();
+        for (String line : tac) {
+            if (line.contains("+ 0")) {
+                String[] p = line.split(" = ");
+                String var = p[1].split(" \\+ ")[0];
+                optimized.add(p[0] + " = " + var);
+            } else if (line.contains("* 1")) {
+                String[] p = line.split(" = ");
+                String var = p[1].split(" \\* ")[0];
+                optimized.add(p[0] + " = " + var);
+            } else {
+                optimized.add(line);
+            }
+        }
+        System.out.println("\nOptimized Code:");
+           for (String line : optimized)
+            System.out.println(line);
+        sc.close();
+    }
+}
